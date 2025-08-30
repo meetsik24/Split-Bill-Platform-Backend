@@ -200,7 +200,7 @@ export class BillService {
           member.member_phone,
           paidCount,
           totalCount,
- .          parseFloat(bill.amount.toString())
+          parseFloat(bill.amount.toString())
         );
       } else if (member.status === 'paid') {
         // Send confirmation to paid members
