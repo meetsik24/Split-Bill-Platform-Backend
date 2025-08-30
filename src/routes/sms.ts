@@ -109,7 +109,7 @@ export default async function smsRoutes(fastify: FastifyInstance) {
   });
 
   // Health check endpoint for SMS service
-  fastify.get('/sms/health', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/sms/health', async (_request: FastifyRequest, reply: FastifyReply) => {
     return reply.send({
       status: 'healthy',
       service: 'SMS',

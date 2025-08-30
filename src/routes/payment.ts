@@ -190,7 +190,7 @@ export default async function paymentRoutes(fastify: FastifyInstance) {
   });
 
   // Health check endpoint for payment service
-  fastify.get('/payment/health', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/payment/health', async (_request: FastifyRequest, reply: FastifyReply) => {
     return reply.send({
       status: 'healthy',
       service: 'Payment',

@@ -1,15 +1,15 @@
 import { db } from '../db';
 import { bills, billMembers, users } from '../db/schema';
-import { eq, and, count, sum } from 'drizzle-orm';
+import { eq, and, count } from 'drizzle-orm';
 import { smsService } from './smsService';
-import type { NewBill, NewBillMember, Bill, BillMember } from '../db/schema';
+import type { Bill, BillMember } from '../db/schema';
 
 export interface CreateBillRequest {
   creatorPhone: string;
   creatorName: string;
   amount: number;
   memberPhones: string[];
-  description?: string;
+  description?: string | undefined;
 }
 
 export interface BillWithMembers extends Bill {
@@ -35,12 +35,20 @@ export class BillService {
         user = [newUser];
       }
 
+      if (!user[0]) {
+        throw new Error('Failed to create or get user');
+      }
+
       // Create bill
       const [bill] = await tx.insert(bills).values({
         creator_id: user[0].id,
-        amount: request.amount,
-        description: request.description,
+        amount: request.amount.toString(),
+        description: request.description || null,
       }).returning();
+
+      if (!bill) {
+        throw new Error('Failed to create bill');
+      }
 
       // Calculate amount per member
       const amountPerMember = request.amount / request.memberPhones.length;
@@ -50,9 +58,13 @@ export class BillService {
         const [member] = await tx.insert(billMembers).values({
           bill_id: bill.id,
           member_phone: phone,
-          amount: amountPerMember,
+          amount: amountPerMember.toString(),
           status: 'pending',
         }).returning();
+
+        if (!member) {
+          throw new Error('Failed to create bill member');
+        }
 
         // Send SMS notification
         await smsService.sendBillSplitRequest(
@@ -69,7 +81,11 @@ export class BillService {
       // Get bill with relations
       const [billWithRelations] = await tx
         .select({
-          ...bills,
+          id: bills.id,
+          creator_id: bills.creator_id,
+          amount: bills.amount,
+          description: bills.description,
+          created_at: bills.created_at,
           creator: {
             name: users.name,
             phone: users.phone,
@@ -78,6 +94,10 @@ export class BillService {
         .from(bills)
         .leftJoin(users, eq(bills.creator_id, users.id))
         .where(eq(bills.id, bill.id));
+
+      if (!billWithRelations || !billWithRelations.creator) {
+        throw new Error('Failed to create bill');
+      }
 
       return {
         ...billWithRelations,
@@ -95,7 +115,11 @@ export class BillService {
   async getBillById(billId: number): Promise<BillWithMembers | null> {
     const billData = await db
       .select({
-        ...bills,
+        id: bills.id,
+        creator_id: bills.creator_id,
+        amount: bills.amount,
+        description: bills.description,
+        created_at: bills.created_at,
         creator: {
           name: users.name,
           phone: users.phone,
@@ -105,7 +129,7 @@ export class BillService {
       .leftJoin(users, eq(bills.creator_id, users.id))
       .where(eq(bills.id, billId));
 
-    if (billData.length === 0) return null;
+    if (billData.length === 0 || !billData[0].creator) return null;
 
     const members = await db
       .select()
@@ -135,7 +159,7 @@ export class BillService {
         )
       );
 
-    if (result.rowCount === 0) return false;
+    if (result.length === 0) return false;
 
     // Get bill details for SMS updates
     const bill = await this.getBillById(billId);
@@ -158,7 +182,9 @@ export class BillService {
       .where(eq(billMembers.bill_id, billId));
 
     // Send SMS updates
-    await this.sendPaymentUpdates(bill, paidCount.count, totalCount.count);
+    if (paidCount && totalCount) {
+      await this.sendPaymentUpdates(bill, paidCount.count, totalCount.count);
+    }
 
     return true;
   }
@@ -174,13 +200,13 @@ export class BillService {
           member.member_phone,
           paidCount,
           totalCount,
-          Number(bill.amount)
+ .          parseFloat(bill.amount.toString())
         );
       } else if (member.status === 'paid') {
         // Send confirmation to paid members
         await smsService.sendPaymentConfirmation(
           member.member_phone,
-          Number(member.amount)
+          parseFloat(member.amount.toString())
         );
       }
     });
@@ -192,7 +218,7 @@ export class BillService {
       // Send completion SMS to organizer
       await smsService.sendPaymentCompletion(
         bill.creator.phone,
-        Number(bill.amount)
+        parseFloat(bill.amount.toString())
       );
     }
   }
@@ -201,22 +227,38 @@ export class BillService {
    * Get bills by creator phone
    */
   async getBillsByCreator(creatorPhone: string): Promise<Bill[]> {
-    return await db
-      .select()
+    const result = await db
+      .select({
+        id: bills.id,
+        creator_id: bills.creator_id,
+        amount: bills.amount,
+        description: bills.description,
+        created_at: bills.created_at,
+      })
       .from(bills)
       .leftJoin(users, eq(bills.creator_id, users.id))
       .where(eq(users.phone, creatorPhone));
+    
+    return result;
   }
 
   /**
    * Get bills by member phone
    */
   async getBillsByMember(memberPhone: string): Promise<Bill[]> {
-    return await db
-      .select()
+    const result = await db
+      .select({
+        id: bills.id,
+        creator_id: bills.creator_id,
+        amount: bills.amount,
+        description: bills.description,
+        created_at: bills.created_at,
+      })
       .from(bills)
       .leftJoin(billMembers, eq(bills.id, billMembers.bill_id))
       .where(eq(billMembers.member_phone, memberPhone));
+    
+    return result;
   }
 }
 

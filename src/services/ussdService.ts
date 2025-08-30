@@ -31,7 +31,7 @@ export class USSDService {
    * Based on Africa's Talking USSD API specification
    */
   async processUSSDRequest(request: USSDRequest): Promise<USSDResponse> {
-    const { sessionId, phoneNumber, text } = request;
+    const { sessionId, phoneNumber } = request;
     
     // Get or create session state
     let state = sessionStore.get(sessionId) || {
@@ -225,7 +225,7 @@ export class USSDService {
   /**
    * Extract name from phone number (simplified - in production, you might have a user database)
    */
-  private extractNameFromPhone(phone: string): string {
+  private extractNameFromPhone(_phone: string): string {
     // This is a simplified implementation
     // In production, you might want to look up the user's name from a database
     return 'User';
@@ -247,7 +247,6 @@ export class USSDService {
   cleanupExpiredSessions(): void {
     // In production, implement proper session expiration
     // For now, this is a placeholder
-    const now = Date.now();
     // You could add timestamp to sessions and clean up old ones
   }
 

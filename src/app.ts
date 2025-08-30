@@ -1,4 +1,4 @@
-import Fastify, { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import Fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
@@ -26,6 +26,11 @@ export async function createApp(): Promise<FastifyInstance> {
       res: (res: any) => ({
         statusCode: res.statusCode,
       }),
+      err: (err: any) => ({
+        type: err.type,
+        message: err.message,
+        stack: err.stack,
+      }),
     },
   } : {
     level: 'warn',
@@ -49,7 +54,7 @@ export async function createApp(): Promise<FastifyInstance> {
   await fastify.register(rateLimit, {
     max: env.RATE_LIMIT_MAX,
     timeWindow: env.RATE_LIMIT_WINDOW_MS,
-    errorResponseBuilder: (request, context) => ({
+    errorResponseBuilder: (_request, context) => ({
       code: 429,
       error: 'Too Many Requests',
       message: `Rate limit exceeded, retry in ${Math.ceil(context.ttl / 1000)} seconds`,
@@ -58,7 +63,7 @@ export async function createApp(): Promise<FastifyInstance> {
   });
 
   // Global error handler
-  fastify.setErrorHandler((error, request, reply) => {
+  fastify.setErrorHandler((error, _request, reply) => {
     fastify.log.error(error);
 
     // Handle validation errors
@@ -74,7 +79,7 @@ export async function createApp(): Promise<FastifyInstance> {
     const statusCode = error.statusCode || 500;
     const message = error.message || 'Internal Server Error';
 
-    reply.status(statusCode).send({
+    return reply.status(statusCode).send({
       error: 'Internal Server Error',
       message: env.NODE_ENV === 'development' ? message : 'Something went wrong',
       ...(env.NODE_ENV === 'development' && { stack: error.stack }),
@@ -82,15 +87,15 @@ export async function createApp(): Promise<FastifyInstance> {
   });
 
   // Global not found handler
-  fastify.setNotFoundHandler((request, reply) => {
+  fastify.setNotFoundHandler((_request, reply) => {
     reply.status(404).send({
       error: 'Not Found',
-      message: `Route ${request.method}:${request.url} not found`,
+      message: 'Route not found',
     });
   });
 
   // Health check endpoint
-  fastify.get('/health', async (request, reply) => {
+  fastify.get('/health', async (_request, reply) => {
     return reply.send({
       status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -101,7 +106,7 @@ export async function createApp(): Promise<FastifyInstance> {
   });
 
   // Root endpoint
-  fastify.get('/', async (request, reply) => {
+  fastify.get('/', async (_request, reply) => {
     return reply.send({
       message: 'Split-Bill Platform API',
       version: '1.0.0',

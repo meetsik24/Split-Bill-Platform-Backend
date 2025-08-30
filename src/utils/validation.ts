@@ -44,8 +44,9 @@ export function formatPhoneNumber(phone: string): string {
  * Validate amount (positive number with up to 2 decimal places)
  */
 export function validateAmount(amount: number): boolean {
+  const parts = amount.toString().split('.');
   return amount > 0 && Number.isFinite(amount) && 
-         amount.toString().split('.')[1]?.length <= 2;
+         (parts.length === 1 || (parts[1] ? parts[1].length <= 2 : true));
 }
 
 /**

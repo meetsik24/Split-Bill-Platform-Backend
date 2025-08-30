@@ -60,7 +60,7 @@ export default async function ussdRoutes(fastify: FastifyInstance) {
   });
 
   // Health check endpoint for USSD service
-  fastify.get('/ussd/health', async (request: FastifyRequest, reply: FastifyReply) => {
+      fastify.get('/ussd/health', async (_request: FastifyRequest, reply: FastifyReply) => {
     return reply.send({
       status: 'healthy',
       service: 'USSD',
@@ -71,7 +71,7 @@ export default async function ussdRoutes(fastify: FastifyInstance) {
   });
 
   // Debug endpoint to view session information (development only)
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env['NODE_ENV'] === 'development') {
     fastify.get('/ussd/sessions/:sessionId', async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const { sessionId } = request.params as { sessionId: string };
@@ -99,7 +99,7 @@ export default async function ussdRoutes(fastify: FastifyInstance) {
     });
 
     // Clear all sessions (development only)
-    fastify.delete('/ussd/sessions', async (request: FastifyRequest, reply: FastifyReply) => {
+    fastify.delete('/ussd/sessions', async (_request: FastifyRequest, reply: FastifyReply) => {
       try {
         ussdService.clearAllSessions();
         return reply.send({
