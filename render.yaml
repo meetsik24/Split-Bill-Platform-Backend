@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: split-bill-platform
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: BRIQ_API_KEY
+        sync: false
+      - key: BRIQ_SENDER_ID
+        sync: false
+      - key: AT_USERNAME
+        sync: false
+      - key: AT_API_KEY
+        sync: false
+      - key: AT_ENVIRONMENT
+        value: production
+      - key: JWT_SECRET
+        sync: false
+      - key: RATE_LIMIT_MAX
+        value: 100
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 900000
+
+  - type: postgres
+    name: split-bill-db
+    plan: free
+    ipAllowList: []
